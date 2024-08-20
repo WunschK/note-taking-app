@@ -1,3 +1,4 @@
+// handles all the drawing stuff
 package com.example.mytestapp
 
 import android.content.Context
