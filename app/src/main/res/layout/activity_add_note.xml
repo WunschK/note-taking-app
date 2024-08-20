@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/note_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Note Title"
+        android:textSize="18sp" />
+
+    <EditText
+        android:id="@+id/note_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/note_name"
+        android:layout_marginTop="16dp"
+        android:hint="Note Content"
+        android:inputType="textMultiLine"
+        android:minLines="5"
+        android:gravity="top|start"
+        android:textSize="16sp" />
+
+    <com.example.mytestapp.DrawingView
+        android:id="@+id/drawing_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_below="@id/note_content"
+        android:layout_above="@id/save_button"
+        android:layout_marginTop="16dp"
+        android:layout_weight="1"
+        android:background="@android:color/darker_gray" />
+
+    <Button
+        android:id="@+id/save_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginTop="16dp"
+        android:text="Save" />
+</RelativeLayout>
