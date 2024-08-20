@@ -67,13 +67,14 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
 
     fun saveDrawingAsSVG(filePath: String) {
         val svgHeader = """<?xml version="1.0" encoding="UTF-8"?>
-    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}">
+    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" color="black">
     """
         val svgFooter = "</svg>"
 
-        val pathData = path.toSVGPath()  // Ensure this method provides valid SVG path data.
+        val pathData = path.toSVGPath()
+        val PATHDATA = "<path d=\"$pathData\" fill=\"none\" stroke=\"black\"/>"// Ensure this method provides valid SVG path data.
 
-        val svgContent = svgHeader + pathData + svgFooter
+        val svgContent = svgHeader + PATHDATA + svgFooter
 
         try {
             val file = File(filePath)
@@ -146,6 +147,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
 
         return svgPathData
     }
+
 
 
 }
