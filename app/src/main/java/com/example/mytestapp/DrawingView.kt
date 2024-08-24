@@ -41,29 +41,22 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
 
     private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
-    private val debugCircles = mutableListOf<Pair<Float, Float>>()
     private val eraserRadius = 10f // Radius for the visual representation of the eraser
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        canvas.drawColor(Color.WHITE) // Clear the canvas with a white background
+
         // Draw all saved paths with their corresponding paints
         for ((savedPath, savedPaint) in paths) {
             canvas.drawPath(savedPath, savedPaint)
         }
-        // Draw the current path being drawn
-        canvas.drawPath(path, if (isErasing) eraserPaint else paint)
 
-        // Draw the eraser preview circles
-        val circlePaint = Paint().apply {
-            color = Color.RED // Color for the eraser preview
-            style = Paint.Style.STROKE // Outline style to show the area affected
-            strokeWidth = 5f // Thickness of the outline
-            alpha = 100 // Semi-transparent to differentiate from paths
-        }
-        for ((x, y) in debugCircles) {
-            canvas.drawCircle(x, y, eraserRadius, circlePaint)
-        }
+        // Draw the current path being drawn or erased
+        canvas.drawPath(path, if (isErasing) eraserPaint else paint)
     }
+
+
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
@@ -102,14 +95,11 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     fun toggleEraserMode() {
         isErasing = !isErasing
         path.reset() // Reset path when toggling to avoid unwanted strokes
-        // Clear the debug circles when toggling mode
-        debugCircles.clear()
+
     }
 
     private fun erase(x: Float, y: Float) {
         Log.d("DrawingView", "Erase initiated at ($x, $y) with radius $eraserRadius")
-
-        // Add circle positions to debugCircles list
 
 
         // Split paths at the eraser position
@@ -197,8 +187,8 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         paths.addAll(newPaths)
     }
 
-
     fun saveDrawingAsSVG(filePath: String) {
+
         val svgHeader = """<?xml version="1.0" encoding="UTF-8"?>
     <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" color="black">
     """
@@ -233,15 +223,15 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         } catch (e: IOException) {
             Log.e("DrawingView", "Error saving SVG", e)
         }
+
     }
 
     fun loadSVG(filePath: String) {
-        Log.d("DrawingView", "Attempting to load SVG from $filePath") // Confirm file path
-
+        Log.d("DrawingView", "Attempting to load SVG from $filePath")
+        clearDrawing()
         if (width <= 0 || height <= 0) {
             viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
                 override fun onGlobalLayout() {
-                    // Remove the listener to avoid calling it multiple times
                     viewTreeObserver.removeOnGlobalLayoutListener(this)
                     loadSVG(filePath)
                 }
@@ -256,13 +246,27 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 return
             }
 
-            val svg = SVG.getFromInputStream(FileInputStream(svgFile))
+            // Clear existing paths
+            paths.clear()
 
-            // Render the SVG to a Bitmap and use it as a background
+            // Clear the background
+            background = null
+
+            val svgContent = svgFile.readText()
+
+            // Parse and add new SVG paths
+            parseSVGPaths(svgContent)
+
+            // Render SVG onto a bitmap for preview (optional)
+            val svg = SVG.getFromInputStream(FileInputStream(svgFile))
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.WHITE) // Clear the canvas with white color
             svg.renderToCanvas(canvas)
             this.background = BitmapDrawable(resources, bitmap)
+
+            // Request a redraw to apply changes
+            invalidate()
 
             Log.d("DrawingView", "SVG loaded successfully.")
         } catch (e: IOException) {
@@ -271,6 +275,89 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
             Log.e("DrawingView", "SVG parsing error", e)
         }
     }
+
+
+
+    private fun parseSVGPaths(svgContent: String) {
+        // Use a regex or a proper SVG parser to extract path data from svgContent
+        val pathPattern = Regex("""<path d="([^"]+)"[^>]*>""")
+        val matchResults = pathPattern.findAll(svgContent)
+
+        paths.clear()
+
+        for (match in matchResults) {
+            val pathData = match.groupValues[1]
+            val path = Path().apply {
+                parseSVGPathData(pathData)
+            }
+            paths.add(Pair(path, paint)) // Use default paint, or customize if needed
+        }
+    }
+
+    private fun Path.parseSVGPathData(pathData: String) {
+        // Regex to match command and coordinates
+        val commandPattern = Regex("([MLCQAZ])([^MLCQAZ]*)")
+        val commands = commandPattern.findAll(pathData)
+
+        var currentCommand = ""
+        var coordinates = mutableListOf<Float>()
+
+        Log.d("DrawingView", "Starting SVG path parsing")
+
+        for (match in commands) {
+            val commandType = match.groupValues[1]
+            val coords = match.groupValues[2].trim()
+
+            // Update command type
+            currentCommand = commandType
+
+            // Parse coordinates
+            if (coords.isNotEmpty()) {
+                coordinates.addAll(coords.split("[,\\s]+".toRegex()).mapNotNull { it.toFloatOrNull() })
+            }
+
+            // Execute commands based on the command type
+            when (currentCommand) {
+                "M" -> {
+                    if (coordinates.size >= 2) {
+                        moveTo(coordinates[0], coordinates[1])
+                        coordinates = coordinates.drop(2).toMutableList() // Move to next set of coordinates
+                    } else {
+                        Log.w("DrawingView", "Invalid moveTo command: $coords")
+                    }
+                }
+                "L" -> {
+                    if (coordinates.size >= 2) {
+                        lineTo(coordinates[0], coordinates[1])
+                        coordinates = coordinates.drop(2).toMutableList() // Move to next set of coordinates
+                    } else {
+                        Log.w("DrawingView", "Invalid lineTo command: $coords")
+                    }
+                }
+                "C" -> {
+                    if (coordinates.size >= 6) {
+                        cubicTo(coordinates[0], coordinates[1], coordinates[2], coordinates[3], coordinates[4], coordinates[5])
+                        coordinates = coordinates.drop(6).toMutableList() // Move to next set of coordinates
+                    } else {
+                        Log.w("DrawingView", "Invalid cubicTo command: $coords")
+                    }
+                }
+                "Q" -> {
+                    if (coordinates.size >= 4) {
+                        quadTo(coordinates[0], coordinates[1], coordinates[2], coordinates[3])
+                        coordinates = coordinates.drop(4).toMutableList() // Move to next set of coordinates
+                    } else {
+                        Log.w("DrawingView", "Invalid quadTo command: $coords")
+                    }
+                }
+                "Z" -> close()
+                else -> Log.w("DrawingView", "Unsupported SVG command: $currentCommand")
+            }
+        }
+
+        Log.d("DrawingView", "SVG path parsing completed")
+    }
+
 
     private fun Path.toSVGPath(): String {
         val builder = StringBuilder()
@@ -293,5 +380,16 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         Log.d("DrawingView", "SVG Path Data: $svgPathData") // Log SVG path data
 
         return svgPathData
+    }
+
+    private fun clearDrawing() {
+        // Clear the existing paths
+        paths.clear()
+
+        // Optionally clear the background (depends on your needs)
+        background = null
+
+        // Request to redraw the view to apply changes
+        invalidate()
     }
 }
