@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<!-- activity_main.xml -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -13,14 +13,14 @@
 
     <EditText
         android:id="@+id/note_content"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="152dp"
+        android:layout_height="100dp"
         android:layout_below="@id/note_name"
         android:layout_marginTop="16dp"
+        android:gravity="top|start"
         android:hint="Note Content"
         android:inputType="textMultiLine"
         android:minLines="5"
-        android:gravity="top|start"
         android:textSize="16sp" />
 
     <com.example.mytestapp.DrawingView
@@ -32,6 +32,16 @@
         android:layout_marginTop="16dp"
         android:layout_weight="1"
         android:background="@android:color/darker_gray" />
+
+    <Button
+        android:id="@+id/toggleEraser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="22dp"
+        android:layout_marginTop="150px"
+        android:layout_toRightOf="@id/note_content"
+        android:backgroundTint="@color/green"
+        android:text="Draw" />
 
     <Button
         android:id="@+id/save_button"

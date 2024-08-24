@@ -1,13 +1,14 @@
 package com.example.mytestapp
 
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import android.widget.Button
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -15,6 +16,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fab: FloatingActionButton
     private lateinit var notesRecyclerView: RecyclerView
     private lateinit var noteAdapter: NoteAdapter
+    private lateinit var drawingView: DrawingView
+    private lateinit var toggleEraserButton: Button
     private var notes: List<Pair<String, String>> = listOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,7 +37,6 @@ class MainActivity : AppCompatActivity() {
         notesRecyclerView = findViewById(R.id.notes_recycler_view)
         notesRecyclerView.layoutManager = LinearLayoutManager(this)
 
-        updateNotes()
     }
 
     fun updateNotes() {

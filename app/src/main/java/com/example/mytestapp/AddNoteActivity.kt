@@ -12,6 +12,7 @@ class AddNoteActivity : AppCompatActivity() {
     private lateinit var noteContentEditText: EditText
     private lateinit var drawingView: DrawingView
     private lateinit var saveButton: Button
+    private lateinit var toggleEraserButton: Button
     private var noteId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +24,7 @@ class AddNoteActivity : AppCompatActivity() {
         noteContentEditText = findViewById(R.id.note_content)
         drawingView = findViewById(R.id.drawing_view)
         saveButton = findViewById(R.id.save_button)
+        toggleEraserButton = findViewById(R.id.toggleEraser)
 
         // Get the note ID from the intent
         noteId = intent.getStringExtra("NOTE_ID")
@@ -36,6 +38,24 @@ class AddNoteActivity : AppCompatActivity() {
         saveButton.setOnClickListener {
             saveNote() // Save the note
             finish() // Close the activity
+        }
+
+        // Set up the toggle eraser button click listener
+        toggleEraserButton.setOnClickListener {
+            drawingView.toggleEraserMode()
+            updateEraserButton()
+        }
+
+        updateEraserButton()
+    }
+
+    private fun updateEraserButton() {
+        if (drawingView.isErasing) {
+            toggleEraserButton.text = "Erase"
+            toggleEraserButton.setBackgroundColor(getColor(android.R.color.holo_red_light))
+        } else {
+            toggleEraserButton.text = "Draw"
+            toggleEraserButton.setBackgroundColor(getColor(android.R.color.holo_green_light))
         }
     }
 
