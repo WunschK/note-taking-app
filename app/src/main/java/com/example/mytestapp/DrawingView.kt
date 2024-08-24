@@ -1,4 +1,3 @@
-// handles all the drawing stuff
 package com.example.mytestapp
 
 import android.content.Context
@@ -32,10 +31,17 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     }
 
     private val path = Path()
+    private val paths = mutableListOf<Path>() // Store all paths drawn
+
     private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        // Draw all saved paths
+        for (savedPath in paths) {
+            canvas.drawPath(savedPath, paint)
+        }
+        // Draw the current path being drawn
         canvas.drawPath(path, paint)
     }
 
@@ -51,7 +57,8 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 invalidate() // Request to redraw the view
             }
             MotionEvent.ACTION_UP -> {
-                // Optional: Add vibration on release if desired
+                paths.add(Path(path)) // Add the completed path to the list of paths
+                path.reset() // Reset the current path for the next drawing
             }
         }
         return super.onTouchEvent(event)
@@ -72,15 +79,31 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     """
         val svgFooter = "</svg>"
 
-        val pathData = path.toSVGPath()
-        val PATHDATA = "<path d=\"$pathData\" fill=\"none\" stroke=\"black\"/>"// Ensure this method provides valid SVG path data.
+        // Load existing SVG content if the file exists
+        val existingSVGContent = StringBuilder()
+        val file = File(filePath)
+        if (file.exists()) {
+            existingSVGContent.append(file.readText())
+            // Remove the old closing SVG tag
+            val index = existingSVGContent.lastIndexOf("</svg>")
+            if (index != -1) {
+                existingSVGContent.delete(index, existingSVGContent.length)
+            }
+        } else {
+            existingSVGContent.append(svgHeader)
+        }
 
-        val svgContent = svgHeader + PATHDATA + svgFooter
+        // Append the new path data
+        for (savedPath in paths) {
+            val pathData = savedPath.toSVGPath()
+            existingSVGContent.append("<path d=\"$pathData\" fill=\"none\" stroke=\"black\"/>")
+        }
+
+        // Add the closing SVG tag
+        existingSVGContent.append(svgFooter)
 
         try {
-            val file = File(filePath)
-            Log.d("DrawingView", "Attempting to write SVG to $filePath")
-            file.writeText(svgContent)
+            file.writeText(existingSVGContent.toString())
             Log.d("DrawingView", "SVG successfully saved to $filePath")
         } catch (e: IOException) {
             Log.e("DrawingView", "Error saving SVG", e)
@@ -107,24 +130,20 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
             }
 
             val svg = SVG.getFromInputStream(FileInputStream(svgFile))
+
+            // Render the SVG to a Bitmap and use it as a background
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             svg.renderToCanvas(canvas)
-
-            // Clear the path before drawing the SVG
-            path.reset()
-
-            // For demo purposes, use the bitmap as the background
             this.background = BitmapDrawable(resources, bitmap)
-            Log.d("DrawingView", "SVG loaded successfully.")
 
+            Log.d("DrawingView", "SVG loaded successfully.")
         } catch (e: IOException) {
             Log.e("DrawingView", "Error loading SVG", e)
         } catch (e: SVGParseException) {
             Log.e("DrawingView", "SVG parsing error", e)
         }
     }
-
 
     private fun Path.toSVGPath(): String {
         val builder = StringBuilder()
@@ -139,7 +158,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 distance == 0f -> "M" // Move to
                 else -> "L" // Line to
             }
-            builder.append("$command ${segments[0]} ${segments[1]} ")
+            builder.append("$command ${segments[0]},${segments[1]} ")
             distance += 1f
         }
 
@@ -148,7 +167,4 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
 
         return svgPathData
     }
-
-
-
 }
