@@ -122,7 +122,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     }
 
     private fun splitPathsAtEraser(x: Float, y: Float) {
-        val eraserRadius = 30f // Eraser radius set to 30px
+        val eraserRadius = 100f // Eraser radius set to 100px
         val eraserRadiusSquared = eraserRadius * eraserRadius
         val newPaths = mutableListOf<Pair<Path, Paint>>()
 
@@ -133,7 +133,9 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
             var currentPath = Path()
             var insideEraser = false
             var lastPos: FloatArray? = null
-            var isFirstSegment = true
+
+            // Use a smaller step size for better precision
+            val stepSize = 0.5f // Smaller step size for finer path details
 
             while (start <= length) {
                 val pos = FloatArray(2)
@@ -145,33 +147,34 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
 
                 if (isInsideEraser) {
                     if (!insideEraser) {
+                        // Path entering the eraser area
                         if (lastPos != null) {
-                            if (!isFirstSegment) {
-                                currentPath.lineTo(pos[0], pos[1])
-                                newPaths.add(Pair(Path(currentPath), savedPaint))
-                                currentPath.reset()
+                            if (currentPath.isEmpty) {
+                                currentPath.moveTo(lastPos[0], lastPos[1])
+                            } else {
+                                currentPath.lineTo(lastPos[0], lastPos[1])
                             }
-                            currentPath.moveTo(lastPos[0], lastPos[1])
-                            currentPath.lineTo(pos[0], pos[1])
-                            isFirstSegment = false
-                        } else {
-                            currentPath.moveTo(pos[0], pos[1])
+                            // Add path segment up to the eraser entry point
+                            newPaths.add(Pair(Path(currentPath), savedPaint))
+                            currentPath.reset()
                         }
+                        currentPath.moveTo(pos[0], pos[1])
                         insideEraser = true
                     } else {
+                        // Continue path inside the eraser area
                         currentPath.lineTo(pos[0], pos[1])
                     }
                 } else {
                     if (insideEraser) {
+                        // Path exiting the eraser area
                         currentPath.lineTo(pos[0], pos[1])
                         newPaths.add(Pair(Path(currentPath), savedPaint))
                         currentPath.reset()
                         currentPath.moveTo(pos[0], pos[1])
                         insideEraser = false
                     } else {
-                        if (isFirstSegment) {
+                        if (currentPath.isEmpty) {
                             currentPath.moveTo(pos[0], pos[1])
-                            isFirstSegment = false
                         } else {
                             currentPath.lineTo(pos[0], pos[1])
                         }
@@ -179,16 +182,17 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 }
 
                 lastPos = pos.clone()
-                start += 1f // Move to the next segment of the path
+                start += stepSize // Use a smaller step size for finer granularity
             }
 
-            // Add the last segment if it's not empty
-            if (!currentPath.isEmpty) {
+            // Add the last path segment if it's not empty
+            if (!currentPath.isEmpty && !insideEraser) {
+                currentPath.lineTo(lastPos?.get(0) ?: 0f, lastPos?.get(1) ?: 0f)
                 newPaths.add(Pair(currentPath, savedPaint))
             }
         }
 
-        // Clear old paths and add new split paths
+        // Clear old paths and add new paths excluding those completely inside the eraser radius
         paths.clear()
         paths.addAll(newPaths)
     }
