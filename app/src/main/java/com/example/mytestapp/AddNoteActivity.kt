@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 class AddNoteActivity : AppCompatActivity() {
 
     private lateinit var noteNameEditText: EditText
-    private lateinit var noteContentEditText: EditText
     private lateinit var drawingView: DrawingView
     private lateinit var saveButton: Button
     private lateinit var toggleEraserButton: Button
@@ -21,7 +20,6 @@ class AddNoteActivity : AppCompatActivity() {
 
         // Initialize views
         noteNameEditText = findViewById(R.id.note_name)
-        noteContentEditText = findViewById(R.id.note_content)
         drawingView = findViewById(R.id.drawing_view)
         saveButton = findViewById(R.id.save_button)
         toggleEraserButton = findViewById(R.id.toggleEraser)
@@ -72,7 +70,7 @@ class AddNoteActivity : AppCompatActivity() {
         val svgFilePath = prefs.getString("${noteId}_svg", "")
 
         noteNameEditText.setText(noteName)
-        noteContentEditText.setText(noteContent)
+
 
         if (svgFilePath != null && svgFilePath.isNotEmpty()) {
             drawingView.loadSVG(svgFilePath)
@@ -81,7 +79,6 @@ class AddNoteActivity : AppCompatActivity() {
 
     private fun saveNote() {
         val noteName = noteNameEditText.text.toString()
-        val noteContent = noteContentEditText.text.toString()
         val filePath = getFilePathForNoteId(noteId!!)
 
         drawingView.saveDrawingAsSVG(filePath)
@@ -89,7 +86,7 @@ class AddNoteActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("MyNotesPrefs", MODE_PRIVATE)
         with(prefs.edit()) {
             putString("${noteId}_name", noteName)
-            putString("${noteId}_content", noteContent)
+
             putString("${noteId}_svg", filePath)
             apply()
         }
