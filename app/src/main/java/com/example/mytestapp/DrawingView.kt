@@ -2,22 +2,21 @@ package com.example.mytestapp
 
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.BitmapDrawable
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.view.ViewTreeObserver
-import android.graphics.drawable.BitmapDrawable
 import com.caverock.androidsvg.SVG
 import com.caverock.androidsvg.SVGParseException
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import kotlin.math.pow
-import kotlin.math.sqrt
 
 class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
@@ -38,14 +37,25 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     private val path = Path()
     private val paths = mutableListOf<Pair<Path, Paint>>() // Store all paths with corresponding paints
     var isErasing = false // To toggle between drawing and erasing
-
     private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
-    private val eraserRadius = 10f // Radius for the visual representation of the eraser
+    private val shadowPaint = Paint().apply {
+        color = Color.argb(100, 0, 0, 0) // Semi-transparent black
+        style = Paint.Style.FILL
+        maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL)
+    }
+    private var shadowX: Float = -1f
+    private var shadowY: Float = -1f
+    private val eraserRadius = 100f // Radius for both the eraser and shadow effect
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(Color.WHITE) // Clear the canvas with a white background
+
+        // Draw the shadow effect if in eraser mode
+        if (isErasing && shadowX >= 0 && shadowY >= 0) {
+            canvas.drawCircle(shadowX, shadowY, eraserRadius, shadowPaint)
+        }
 
         // Draw all saved paths with their corresponding paints
         for ((savedPath, savedPaint) in paths) {
@@ -56,17 +66,21 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         canvas.drawPath(path, if (isErasing) eraserPaint else paint)
     }
 
-
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 path.moveTo(event.x, event.y)
+                if (isErasing) {
+                    shadowX = event.x
+                    shadowY = event.y
+                }
                 vibrate() // Call vibration method
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 if (isErasing) {
+                    shadowX = event.x
+                    shadowY = event.y
                     erase(event.x, event.y)
                 } else {
                     path.lineTo(event.x, event.y)
@@ -78,6 +92,8 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                     paths.add(Pair(Path(path), paint)) // Add the completed path with corresponding paint
                 }
                 path.reset() // Reset the current path for the next drawing
+                shadowX = -1f
+                shadowY = -1f
             }
         }
         return super.onTouchEvent(event)
@@ -95,37 +111,38 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     fun toggleEraserMode() {
         isErasing = !isErasing
         path.reset() // Reset path when toggling to avoid unwanted strokes
-
+        if (!isErasing) {
+            shadowX = -1f
+            shadowY = -1f
+        }
     }
 
     private fun erase(x: Float, y: Float) {
         Log.d("DrawingView", "Erase initiated at ($x, $y) with radius $eraserRadius")
-
-
-        // Split paths at the eraser position
         splitPathsAtEraser(x, y)
-
-        // Trigger a redraw to show circles
         invalidate()
-
         Log.d("DrawingView", "Paths after erase: ${paths.size} remaining paths.")
     }
 
     private fun splitPathsAtEraser(x: Float, y: Float) {
-        val eraserRadius = 100f // Eraser radius set to 100px
         val eraserRadiusSquared = eraserRadius * eraserRadius
         val newPaths = mutableListOf<Pair<Path, Paint>>()
 
         for ((savedPath, savedPaint) in paths) {
             val pathMeasure = PathMeasure(savedPath, false)
             val length = pathMeasure.length
+            Log.d("DrawingView", "Starting splitPathsAtEraser - Path length: $length")
+
+            if (length == 0f) {
+                Log.w("DrawingView", "Encountered path with zero length.")
+                continue
+            }
+
             var start = 0f
             var currentPath = Path()
             var insideEraser = false
             var lastPos: FloatArray? = null
-
-            // Use a smaller step size for better precision
-            val stepSize = 0.5f // Smaller step size for finer path details
+            val stepSize = 0.4f // Adjusted step size for better precision
 
             while (start <= length) {
                 val pos = FloatArray(2)
@@ -135,30 +152,32 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 val distanceSquared = dx * dx + dy * dy
                 val isInsideEraser = distanceSquared <= eraserRadiusSquared
 
+                Log.d("DrawingView", "Position: (${pos[0]}, ${pos[1]}) | DistanceSquared: $distanceSquared | InsideEraser: $isInsideEraser")
+
                 if (isInsideEraser) {
                     if (!insideEraser) {
-                        // Path entering the eraser area
+                        Log.d("DrawingView", "Path entering eraser area at: (${pos[0]}, ${pos[1]})")
                         if (lastPos != null) {
                             if (currentPath.isEmpty) {
                                 currentPath.moveTo(lastPos[0], lastPos[1])
                             } else {
                                 currentPath.lineTo(lastPos[0], lastPos[1])
                             }
-                            // Add path segment up to the eraser entry point
                             newPaths.add(Pair(Path(currentPath), savedPaint))
+                            Log.d("DrawingView", "Added path segment to newPaths (before entering eraser).")
                             currentPath.reset()
                         }
                         currentPath.moveTo(pos[0], pos[1])
                         insideEraser = true
                     } else {
-                        // Continue path inside the eraser area
                         currentPath.lineTo(pos[0], pos[1])
                     }
                 } else {
                     if (insideEraser) {
-                        // Path exiting the eraser area
+                        Log.d("DrawingView", "Path exiting eraser area at: (${pos[0]}, ${pos[1]})")
                         currentPath.lineTo(pos[0], pos[1])
                         newPaths.add(Pair(Path(currentPath), savedPaint))
+                        Log.d("DrawingView", "Added path segment to newPaths (after exiting eraser).")
                         currentPath.reset()
                         currentPath.moveTo(pos[0], pos[1])
                         insideEraser = false
@@ -172,19 +191,20 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 }
 
                 lastPos = pos.clone()
-                start += stepSize // Use a smaller step size for finer granularity
+                start += stepSize
             }
 
-            // Add the last path segment if it's not empty
             if (!currentPath.isEmpty && !insideEraser) {
                 currentPath.lineTo(lastPos?.get(0) ?: 0f, lastPos?.get(1) ?: 0f)
                 newPaths.add(Pair(currentPath, savedPaint))
+                Log.d("DrawingView", "Added final path segment to newPaths.")
             }
         }
 
-        // Clear old paths and add new paths excluding those completely inside the eraser radius
+        Log.d("DrawingView", "Completed splitPathsAtEraser - New paths count: ${newPaths.size}")
         paths.clear()
         paths.addAll(newPaths)
+        Log.d("DrawingView", "Paths after splitPathsAtEraser: ${paths.size}")
     }
 
     fun saveDrawingAsSVG(filePath: String) {
