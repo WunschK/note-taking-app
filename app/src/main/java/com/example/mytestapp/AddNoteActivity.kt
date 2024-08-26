@@ -66,7 +66,6 @@ class AddNoteActivity : AppCompatActivity() {
     private fun loadNote() {
         val prefs = getSharedPreferences("MyNotesPrefs", MODE_PRIVATE)
         val noteName = prefs.getString("${noteId}_name", "")
-        val noteContent = prefs.getString("${noteId}_content", "")
         val svgFilePath = prefs.getString("${noteId}_svg", "")
 
         noteNameEditText.setText(noteName)
