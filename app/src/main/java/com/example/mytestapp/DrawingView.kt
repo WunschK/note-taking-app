@@ -16,10 +16,23 @@ import com.caverock.androidsvg.SVGParseException
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
-import kotlin.math.pow
+
 
 class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) {
+    // private variables and values
+    private var shadowX: Float = -1f
+    private var shadowY: Float = -1f
+    private val path = Path()
+    private val paths = mutableListOf<Pair<Path, Paint>>() // Store all paths with corresponding paints
+    private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    private val eraserRadius = 100f // Radius for both the eraser and shadow effect
 
+    // variables and values
+    var isErasing = false // To toggle between drawing and erasing
+
+
+
+    // paints
     private val paint = Paint().apply {
         color = 0xFF000000.toInt() // Black color
         strokeWidth = 10f // Line width
@@ -34,20 +47,14 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) // Set to erase mode
     }
 
-    private val path = Path()
-    private val paths = mutableListOf<Pair<Path, Paint>>() // Store all paths with corresponding paints
-    var isErasing = false // To toggle between drawing and erasing
-    private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-
     private val shadowPaint = Paint().apply {
         color = Color.argb(100, 0, 0, 0) // Semi-transparent black
         style = Paint.Style.FILL
         maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL)
     }
-    private var shadowX: Float = -1f
-    private var shadowY: Float = -1f
-    private val eraserRadius = 100f // Radius for both the eraser and shadow effect
 
+
+    // onDraw method
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(Color.WHITE) // Clear the canvas with a white background
@@ -66,39 +73,47 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         canvas.drawPath(path, if (isErasing) eraserPaint else paint)
     }
 
+    // onTouchEvent
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                path.moveTo(event.x, event.y)
-                if (isErasing) {
-                    shadowX = event.x
-                    shadowY = event.y
-                }
-                vibrate() // Call vibration method
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (isErasing) {
-                    shadowX = event.x
-                    shadowY = event.y
-                    erase(event.x, event.y)
-                } else {
-                    path.lineTo(event.x, event.y)
-                }
-                invalidate() // Request to redraw the view
-            }
-            MotionEvent.ACTION_UP -> {
-                if (!isErasing) {
-                    paths.add(Pair(Path(path), paint)) // Add the completed path with corresponding paint
-                }
-                path.reset() // Reset the current path for the next drawing
-                shadowX = -1f
-                shadowY = -1f
-            }
+            MotionEvent.ACTION_DOWN -> handleActionDown(event)
+            MotionEvent.ACTION_MOVE -> handleActionMove(event)
+            MotionEvent.ACTION_UP -> handleActionUp(event)
         }
         return super.onTouchEvent(event)
     }
 
+    private fun handleActionDown(event: MotionEvent) {
+        path.moveTo(event.x, event.y)
+        if (isErasing) {
+            shadowX = event.x
+            shadowY = event.y
+        }
+        vibrate()
+    }
+
+    private fun handleActionMove(event: MotionEvent) {
+        if (isErasing) {
+            shadowX = event.x
+            shadowY = event.y
+            erase(event.x, event.y)
+        } else {
+            path.lineTo(event.x, event.y)
+        }
+        invalidate()
+    }
+
+    private fun handleActionUp(event: MotionEvent) {
+        if (!isErasing) {
+            paths.add(Pair(Path(path), paint))
+        }
+        path.reset()
+        shadowX = -1f
+        shadowY = -1f
+    }
+
+
+    // Helper functions
     private fun vibrate() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)) // 50ms duration
@@ -124,6 +139,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         Log.d("DrawingView", "Paths after erase: ${paths.size} remaining paths.")
     }
 
+    // Path Operations
     private fun splitPathsAtEraser(x: Float, y: Float) {
         val eraserRadiusSquared = eraserRadius * eraserRadius
         val newPaths = mutableListOf<Pair<Path, Paint>>()
@@ -207,6 +223,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         Log.d("DrawingView", "Paths after splitPathsAtEraser: ${paths.size}")
     }
 
+    // File Handling
     fun saveDrawingAsSVG(filePath: String) {
 
         val svgHeader = """<?xml version="1.0" encoding="UTF-8"?>
@@ -298,6 +315,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
 
 
 
+    // SVG parsing
     private fun parseSVGPaths(svgContent: String) {
         // Use a regex or a proper SVG parser to extract path data from svgContent
         val pathPattern = Regex("""<path d="([^"]+)"[^>]*>""")
