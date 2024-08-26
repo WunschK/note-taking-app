@@ -6,12 +6,14 @@ import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
 
+
 class AddNoteActivity : AppCompatActivity() {
 
     private lateinit var noteNameEditText: EditText
     private lateinit var drawingView: DrawingView
     private lateinit var saveButton: Button
     private lateinit var toggleEraserButton: Button
+    private lateinit var clearCanvasButton: Button
     private var noteId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +25,7 @@ class AddNoteActivity : AppCompatActivity() {
         drawingView = findViewById(R.id.drawing_view)
         saveButton = findViewById(R.id.save_button)
         toggleEraserButton = findViewById(R.id.toggleEraser)
+        clearCanvasButton = findViewById(R.id.clearCanvasButton)
 
         // Get the note ID from the intent
         noteId = intent.getStringExtra("NOTE_ID")
@@ -45,6 +48,10 @@ class AddNoteActivity : AppCompatActivity() {
         }
 
         updateEraserButton()
+
+        clearCanvasButton.setOnClickListener {
+            drawingView.clearDrawing()
+        }
     }
 
     private fun updateEraserButton() {
@@ -91,4 +98,6 @@ class AddNoteActivity : AppCompatActivity() {
         }
         Log.d("AddNoteActivity", "Note saved: $noteId")
     }
-}
+
+
+    }

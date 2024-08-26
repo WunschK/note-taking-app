@@ -21,10 +21,12 @@ import kotlin.math.pow
 class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
     private val paint = Paint().apply {
-        color = 0xFF000000.toInt() // Black color
+        color = 0x80000000.toInt() // Base color with a starting alpha
         strokeWidth = 10f // Line width
         isAntiAlias = true
         style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        xfermode = PorterDuffXfermode(PorterDuff.Mode.DARKEN) // Set to darken mode
     }
 
     private val eraserPaint = Paint().apply {
@@ -99,14 +101,14 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         return super.onTouchEvent(event)
     }
 
-    private fun vibrate() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)) // 50ms duration
-        } else {
-            vibrator.vibrate(50) // For older devices
-        }
-        Log.d("DrawingView", "Vibration triggered")
+
+    private fun erase(x: Float, y: Float) {
+        Log.d("DrawingView", "Erase initiated at ($x, $y) with radius $eraserRadius")
+        splitPathsAtEraser(x, y)
+        invalidate()
+        Log.d("DrawingView", "Paths after erase: ${paths.size} remaining paths.")
     }
+
 
     fun toggleEraserMode() {
         isErasing = !isErasing
@@ -117,12 +119,18 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         }
     }
 
-    private fun erase(x: Float, y: Float) {
-        Log.d("DrawingView", "Erase initiated at ($x, $y) with radius $eraserRadius")
-        splitPathsAtEraser(x, y)
-        invalidate()
-        Log.d("DrawingView", "Paths after erase: ${paths.size} remaining paths.")
+    private fun vibrate() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)) // 50ms duration
+        } else {
+            vibrator.vibrate(50) // For older devices
+        }
+        Log.d("DrawingView", "Vibration triggered")
     }
+
+
+
+
 
     private fun splitPathsAtEraser(x: Float, y: Float) {
         val eraserRadiusSquared = eraserRadius * eraserRadius
@@ -205,50 +213,44 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         paths.clear()
         paths.addAll(newPaths)
         Log.d("DrawingView", "Paths after splitPathsAtEraser: ${paths.size}")
+        invalidate()
     }
 
     fun saveDrawingAsSVG(filePath: String) {
-
+        // SVG header and footer
         val svgHeader = """<?xml version="1.0" encoding="UTF-8"?>
-    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" color="black">
-    """
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" color="black">
+"""
         val svgFooter = "</svg>"
 
-        // Load existing SVG content if the file exists
-        val existingSVGContent = StringBuilder()
-        val file = File(filePath)
-        if (file.exists()) {
-            existingSVGContent.append(file.readText())
-            // Remove the old closing SVG tag
-            val index = existingSVGContent.lastIndexOf("</svg>")
-            if (index != -1) {
-                existingSVGContent.delete(index, existingSVGContent.length)
-            }
-        } else {
-            existingSVGContent.append(svgHeader)
-        }
+        // Initialize new SVG content with header
+        val svgContent = StringBuilder(svgHeader)
 
-        // Append the new path data
+        // Append current paths to the new SVG content
         for ((savedPath, _) in paths) {
             val pathData = savedPath.toSVGPath()
-            existingSVGContent.append("<path d=\"$pathData\" fill=\"none\" stroke=\"black\"/>")
+            svgContent.append("<path d=\"$pathData\" fill=\"none\" stroke=\"black\"/>")
         }
 
         // Add the closing SVG tag
-        existingSVGContent.append(svgFooter)
+        svgContent.append(svgFooter)
 
+        // Save the new SVG content to the file, overwriting existing content
         try {
-            file.writeText(existingSVGContent.toString())
+            File(filePath).writeText(svgContent.toString())
             Log.d("DrawingView", "SVG successfully saved to $filePath")
         } catch (e: IOException) {
             Log.e("DrawingView", "Error saving SVG", e)
         }
-
     }
+
 
     fun loadSVG(filePath: String) {
         Log.d("DrawingView", "Attempting to load SVG from $filePath")
+
+        // Clear existing drawing and background before loading
         clearDrawing()
+
         if (width <= 0 || height <= 0) {
             viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
                 override fun onGlobalLayout() {
@@ -266,22 +268,17 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 return
             }
 
-            // Clear existing paths
-            paths.clear()
-
-            // Clear the background
+            // Clear the background bitmap before loading the new SVG
             background = null
 
+            // Load SVG paths and render
             val svgContent = svgFile.readText()
-
-            // Parse and add new SVG paths
             parseSVGPaths(svgContent)
 
-            // Render SVG onto a bitmap for preview (optional)
             val svg = SVG.getFromInputStream(FileInputStream(svgFile))
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            canvas.drawColor(Color.WHITE) // Clear the canvas with white color
+            canvas.drawColor(Color.WHITE) // Clear canvas with white color
             svg.renderToCanvas(canvas)
             this.background = BitmapDrawable(resources, bitmap)
 
@@ -298,11 +295,12 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
 
 
 
+
     private fun parseSVGPaths(svgContent: String) {
-        // Use a regex or a proper SVG parser to extract path data from svgContent
         val pathPattern = Regex("""<path d="([^"]+)"[^>]*>""")
         val matchResults = pathPattern.findAll(svgContent)
 
+        // Clear any existing paths to avoid duplication
         paths.clear()
 
         for (match in matchResults) {
@@ -402,7 +400,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         return svgPathData
     }
 
-    private fun clearDrawing() {
+    fun clearDrawing() {
         // Clear the existing paths
         paths.clear()
 

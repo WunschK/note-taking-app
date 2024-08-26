@@ -32,6 +32,15 @@
         android:text="Draw" />
 
     <Button
+        android:id="@+id/clearCanvasButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="1dp"
+        android:layout_marginLeft="130dp"
+        android:text="Clear Canvas" />
+
+    <Button
         android:id="@+id/save_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
