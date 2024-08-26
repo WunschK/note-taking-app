@@ -6,10 +6,18 @@
 
     <EditText
         android:id="@+id/note_name"
-        android:layout_width="match_parent"
+        android:layout_width="150dp"
         android:layout_height="wrap_content"
         android:hint="Note Title"
         android:textSize="18dp" />
+
+
+    <Button
+        android:id="@+id/syncButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:text="Sync to GitHub" />
 
 
     <com.example.mytestapp.DrawingView
