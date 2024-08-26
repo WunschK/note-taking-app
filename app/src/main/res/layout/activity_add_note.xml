@@ -1,15 +1,15 @@
-<!-- activity_main.xml -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp">
+
 
     <EditText
         android:id="@+id/note_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Note Title"
-        android:textSize="18sp" />
+        android:textSize="18dp" />
 
 
     <com.example.mytestapp.DrawingView
