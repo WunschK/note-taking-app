@@ -39,6 +39,17 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    // Todo 1: Implement collection handling (CRUD - collections)
+    // Todo 2: Implement Navigation menu layout
+    // Todo 3: Implement Navigation logic
+    // Todo 4: Implement Collection logic
+    // Todo 5: Implement Notebook handling (CRUD notebooks)
+    // Todo 6: Implement Note handling (CRUD notes)
+
+
+
+
+    // handling stuff around notes
     fun updateNotes() {
         loadNotes()
         noteAdapter = NoteAdapter(this, notes)
