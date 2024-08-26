@@ -208,15 +208,18 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     }
 
     fun saveDrawingAsSVG(filePath: String) {
+
         val svgHeader = """<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" color="black">
-"""
+    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" color="black">
+    """
         val svgFooter = "</svg>"
 
+        // Load existing SVG content if the file exists
         val existingSVGContent = StringBuilder()
         val file = File(filePath)
         if (file.exists()) {
             existingSVGContent.append(file.readText())
+            // Remove the old closing SVG tag
             val index = existingSVGContent.lastIndexOf("</svg>")
             if (index != -1) {
                 existingSVGContent.delete(index, existingSVGContent.length)
@@ -229,9 +232,9 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         for ((savedPath, _) in paths) {
             val pathData = savedPath.toSVGPath()
             existingSVGContent.append("<path d=\"$pathData\" fill=\"none\" stroke=\"black\"/>")
-            Log.d("DrawingView", "SVG Path Data: $pathData") // Log each path data
         }
 
+        // Add the closing SVG tag
         existingSVGContent.append(svgFooter)
 
         try {
@@ -240,8 +243,8 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         } catch (e: IOException) {
             Log.e("DrawingView", "Error saving SVG", e)
         }
-    }
 
+    }
 
     fun loadSVG(filePath: String) {
         Log.d("DrawingView", "Attempting to load SVG from $filePath")
