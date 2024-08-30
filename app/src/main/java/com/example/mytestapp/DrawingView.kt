@@ -1,3 +1,4 @@
+
 package com.example.mytestapp
 
 import android.content.Context
@@ -335,3 +336,4 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         invalidate()
     }
 }
+    
