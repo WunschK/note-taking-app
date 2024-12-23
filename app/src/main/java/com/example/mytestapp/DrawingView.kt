@@ -69,6 +69,15 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Check the tool type of the primary pointer
+        val toolType = event.getToolType(0)
+
+        // Ignore touch events from a finger
+        if (toolType == MotionEvent.TOOL_TYPE_FINGER) {
+            Log.d("DrawingView", "Finger detected. Ignoring input.")
+            return false // Event not handled
+        }
+
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 path.moveTo(event.x, event.y)
@@ -98,8 +107,10 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
                 shadowY = -1f
             }
         }
-        return super.onTouchEvent(event)
+        return true // Event handled
     }
+
+
 
 
     private fun erase(x: Float, y: Float) {
